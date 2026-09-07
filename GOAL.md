@@ -72,7 +72,7 @@ Every table: `session_id` + `created_at`. Postgres 16 + pgvector in Docker
 | 0 | **Map** — inventory every place Hermes reads/writes state (state.db, sessions/, memory files, skills, compression) with file:line. No code changes. | **DONE** — 2026-09-07, 4-agent recon; write-up: docs/phase0-inventory.md |
 | 1 | Schema — tables, stored functions, migrations, Docker Postgres 16 + pgvector | |
 | 2 | Repository layer behind `storage.backend` flag | |
-| 3 | Port session store → memory → compaction (one swap per commit, tests green each time) | |
+| 3 | Port session store → memory → skills → compaction (one swap per commit, tests green each time) | |
 | 4 | Benchmark — replay 50-turn transcript, stock vs RaamsesAgent, publish db_ms/model_ms/tool_ms split | |
 
 ## Benchmark honesty
@@ -82,22 +82,32 @@ measure are round-trip count for context assembly, recall quality/latency, and
 crash safety of compaction — not total turn time. `turn_metrics` exists so the
 table decides, not the narrative.
 
-## Decisions (2026-09-07; recommended defaults adopted pending user confirmation)
+## Decisions (2026-09-07; updated after user answers)
+
+Principle: **Postgres is the runtime authority for live work — skills, sessions,
+long-term memory. Markdown/files remain only as 3rd-party, legacy, and authoring
+interchange surfaces: imported at initialization/startup, never read on the live
+path.**
 
 1. **Memory port shape**: Postgres REPLACES the builtin file MemoryStore internals —
-   single store, no dual-write (the goal is zero `MEMORY.md` reads). `memories`
-   table + `sp_upsert_memory`; the external-provider ABC stays untouched for
-   third-party providers. Snapshot semantics preserved: entries frozen at load,
-   reload only at compaction.
-2. **Skills scope**: index + usage/curator ledger + search in Postgres; SKILL.md
-   *content* stays on disk as authored files, loaded once per session (charter
-   lean, confirmed by Phase 0 recon: content is loaded once/session; the mutable
-   agent state is the ledger). `skills` table = registry/index; sidecar files
-   (`.usage.json`, `.curator_state`, `.curator_suppressed`, `.archive/`) migrate
-   into it.
-3. **v1 cut scope**: brain state only — sessions/messages/compaction/memories +
-   `turn_metrics` + `sp_build_context`. Cron/kanban/plugin-data are Phase 3+
-   extensions (inventory rows already filed in docs/phase0-inventory.md §5).
+   single store, no dual-write. `memories` table + `sp_upsert_memory`; the
+   external-provider ABC stays untouched for third-party providers. Snapshot
+   semantics preserved: entries frozen at load, reload only at compaction. Markdown
+   read/write retained solely for import/export and third-party/legacy tooling,
+   not on the runtime path.
+2. **Skills scope — full port**: content + registry/index + usage/curator ledger all
+   in Postgres (`skills` table family). SKILL.md files remain only as the
+   3rd-party/legacy/authoring surface — bundled/plugin/hub skills and hand-authored
+   files import into the DB at initialization; runtime reads serve from the DB and
+   never rescan disk after startup. Sidecar files (`.usage.json`, `.curator_state`,
+   `.curator_suppressed`, `.archive/`) migrate into the DB. The performance win is
+   in post-startup serving: skills/memory reads in the first-prompt build
+   (system_prompt.py:604-727, prompt_builder.py:1065-1079 snapshot cache) become DB
+   queries, and subsequent sessions hit rows instead of the 6-10 file reads recon
+   counted per first session.
+3. **v1 cut scope**: brain state + skills — sessions/messages/compaction/memories/
+   skills + `turn_metrics` + `sp_build_context`. Cron/kanban/plugin-data are
+   Phase 3+ extensions (inventory rows filed in docs/phase0-inventory.md §5).
 4. **Branch strategy**: charter/planning commits land on `main`; each port swap
    gets its own branch + PR to keep `main` mergeable with upstream.
 
