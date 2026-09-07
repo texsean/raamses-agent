@@ -82,12 +82,26 @@ measure are round-trip count for context assembly, recall quality/latency, and
 crash safety of compaction — not total turn time. `turn_metrics` exists so the
 table decides, not the narrative.
 
-## Open questions (decide in Phase 1)
+## Decisions (2026-09-07; recommended defaults adopted pending user confirmation)
 
-1. Do skills *content* files stay on disk (loaded once per session) with only the
-   index in Postgres, or does content move into the `skills` table? Lean: content
-   stays on disk, index + search in Postgres — skills are authored as files.
-2. Does Raamses.io / Texsean/Raamses (existing CYD/Ramses codebase) integrate with
+1. **Memory port shape**: Postgres REPLACES the builtin file MemoryStore internals —
+   single store, no dual-write (the goal is zero `MEMORY.md` reads). `memories`
+   table + `sp_upsert_memory`; the external-provider ABC stays untouched for
+   third-party providers. Snapshot semantics preserved: entries frozen at load,
+   reload only at compaction.
+2. **Skills scope**: index + usage/curator ledger + search in Postgres; SKILL.md
+   *content* stays on disk as authored files, loaded once per session (charter
+   lean, confirmed by Phase 0 recon: content is loaded once/session; the mutable
+   agent state is the ledger). `skills` table = registry/index; sidecar files
+   (`.usage.json`, `.curator_state`, `.curator_suppressed`, `.archive/`) migrate
+   into it.
+3. **v1 cut scope**: brain state only — sessions/messages/compaction/memories +
+   `turn_metrics` + `sp_build_context`. Cron/kanban/plugin-data are Phase 3+
+   extensions (inventory rows already filed in docs/phase0-inventory.md §5).
+4. **Branch strategy**: charter/planning commits land on `main`; each port swap
+   gets its own branch + PR to keep `main` mergeable with upstream.
+
+## Open questions (remaining)
+
+1. Does Raamses.io / Texsean/Raamses (existing CYD/Ramses codebase) integrate with
    RaamsesAgent, or is this brand reuse only? (Asked 2026-09-07, unanswered.)
-3. Branch strategy: charter commits land on `main`; per-swap ports get their own
-   branch + PR to keep `main` mergeable with upstream.
