@@ -42,7 +42,8 @@ memory/summary files are no longer read or written during an interactive session
 ## Schema v1 (Phase 1, migrations as plain SQL files)
 
 `sessions` · `messages` (parent_id → free session branching) · `tool_calls` ·
-`summaries` · `memories` (embedding vector) · `skills` · `turn_metrics`
+`summaries` · `memories` (embedding vector) · `skills` · `turn_metrics` ·
+`file_sync` (per-file fingerprint ledger for the external-edit sweep)
 Every table: `session_id` + `created_at`. Postgres 16 + pgvector in Docker
 (`docker-compose.yml`, Windows variant exists).
 
@@ -110,6 +111,17 @@ path.**
    Phase 3+ extensions (inventory rows filed in docs/phase0-inventory.md §5).
 4. **Branch strategy**: charter/planning commits land on `main`; each port swap
    gets its own branch + PR to keep `main` mergeable with upstream.
+5. **External-edit sync (md watch → DB)**: the markdown surface stays live for
+   humans and 3rd-party tools. A polling sweeper (default 300s, configurable)
+   content-hashes the watched legacy files (skills content trees, `memories/*.md`;
+   excludes `.lock`, `.bak.*`, `.archive/`) against per-file fingerprints in
+   Postgres (`file_sync`). Disk hash ≠ fingerprint ⇒ external edit ⇒ import via
+   stored function. Agent export writes refresh the fingerprint, so its own writes
+   never re-import (no loop). Three-way rule: file changed only → import; DB
+   changed only → export; both changed → conflict, DB wins, file parked to
+   `.conflict.<ts>`, surfaced not dropped. The sweep also runs at startup/session
+   open (edits made while the agent was closed are the common case; the timer only
+   covers long-running sessions). First sync imports current files as baseline.
 
 ## Open questions (remaining)
 
