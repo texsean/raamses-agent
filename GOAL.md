@@ -69,7 +69,7 @@ Every table: `session_id` + `created_at`. Postgres 16 + pgvector in Docker
 
 | # | Phase | Status |
 |---|-------|--------|
-| 0 | **Map** — inventory every place Hermes reads/writes state (state.db, sessions/, memory files, skills, compression) with file:line. No code changes. | In progress (delegated recon, 2026-09-07) |
+| 0 | **Map** — inventory every place Hermes reads/writes state (state.db, sessions/, memory files, skills, compression) with file:line. No code changes. | **DONE** — 2026-09-07, 4-agent recon; write-up: docs/phase0-inventory.md |
 | 1 | Schema — tables, stored functions, migrations, Docker Postgres 16 + pgvector | |
 | 2 | Repository layer behind `storage.backend` flag | |
 | 3 | Port session store → memory → compaction (one swap per commit, tests green each time) | |
