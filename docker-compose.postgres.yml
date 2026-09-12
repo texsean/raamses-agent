@@ -1,0 +1,37 @@
+version: "3.9"
+
+# RaamsesAgent Postgres 16 + pgvector state store.
+# Windows-friendly: named volume (no bind-mount path escaping needed),
+# migrations mounted read-only and auto-applied by the postgres entrypoint
+# (files in /docker-entrypoint-initdb.d/ run once, in filename order, only
+# against a freshly-initialized empty data directory).
+#
+# Usage:
+#   docker compose -f docker-compose.postgres.yml up -d
+#   docker compose -f docker-compose.postgres.yml exec postgres psql -U raamses -d raamses
+#
+# Re-running migrations against an existing volume: entrypoint scripts only
+# fire once. To re-seed from scratch: `docker compose -f docker-compose.postgres.yml down -v`.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: raamses-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: raamses
+      POSTGRES_PASSWORD: raamses_dev_password
+      POSTGRES_DB: raamses
+    ports:
+      - "55432:5432"
+    volumes:
+      - raamses_pg_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raamses -d raamses"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  raamses_pg_data:
