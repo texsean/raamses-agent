@@ -71,8 +71,8 @@ Every table: `session_id` + `created_at`. Postgres 16 + pgvector in Docker
 | # | Phase | Status |
 |---|-------|--------|
 | 0 | **Map** — inventory every place Hermes reads/writes state (state.db, sessions/, memory files, skills, compression) with file:line. No code changes. | **DONE** — 2026-09-07, 4-agent recon; write-up: docs/phase0-inventory.md |
-| 1 | Schema — tables, stored functions, migrations, Docker Postgres 16 + pgvector | |
-| 2 | Repository layer behind `storage.backend` flag | |
+| 1 | Schema — tables, stored functions, migrations, Docker Postgres 16 + pgvector | **DONE** — 2026-09-12, applied + verified live; 22 stored-function tests |
+| 2 | Repository layer behind `storage.backend` flag | **DONE** — 2026-09-12, `raamses/repository.py`; 32 tests |
 | 3 | Port session store → memory → skills → compaction (one swap per commit, tests green each time) | |
 | 4 | Benchmark — replay 50-turn transcript, stock vs RaamsesAgent, publish db_ms/model_ms/tool_ms split | |
 
