@@ -129,20 +129,21 @@ def close_pool() -> None:
 # ------------------------------------------------------------ call layer ----
 
 # Positional parameter casts per stored function, in declaration order.
+# Session ids are TEXT (Hermes timestamp strings), not UUID — see migration 0006.
 _SIGNATURES: Dict[str, Sequence[str]] = {
-    "sp_create_session": ("text", "jsonb"),
-    "sp_end_session": ("uuid", "text", "text"),
-    "sp_get_session": ("uuid",),
+    "sp_create_session": ("text", "text", "jsonb"),
+    "sp_end_session": ("text", "text", "text"),
+    "sp_get_session": ("text",),
     "sp_list_sessions": ("text", "integer"),
-    "sp_record_turn_metrics": ("uuid", "integer", "numeric", "numeric", "numeric", "jsonb"),
-    "sp_append_message": ("uuid", "text", "text", "bigint", "integer", "jsonb"),
+    "sp_record_turn_metrics": ("text", "integer", "numeric", "numeric", "numeric", "jsonb"),
+    "sp_append_message": ("text", "text", "text", "bigint", "integer", "jsonb"),
     "sp_log_tool_call": (
-        "uuid", "text", "jsonb", "bigint", "jsonb", "text", "text", "numeric",
+        "text", "text", "jsonb", "bigint", "jsonb", "text", "text", "numeric",
     ),
-    "sp_upsert_memory": ("bigint", "uuid", "text", "text", "vector(1536)", "real", "jsonb"),
-    "sp_recall": ("uuid", "vector(1536)", "text", "integer"),
-    "sp_compact_session": ("uuid", "text", "bigint", "integer"),
-    "sp_build_context": ("uuid", "integer"),
+    "sp_upsert_memory": ("bigint", "text", "text", "text", "vector(1536)", "real", "jsonb"),
+    "sp_recall": ("text", "vector(1536)", "text", "integer"),
+    "sp_compact_session": ("text", "text", "bigint", "integer"),
+    "sp_build_context": ("text", "integer"),
 }
 
 
@@ -262,11 +263,16 @@ class RaamsesRepository:
 
     def create_session(
         self,
-        title: Optional[str] = None,
+        session_id: str,
+        source: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """Create a session row; returns its UUID as a string."""
-        return str(self._scalar("sp_create_session", title, _jsonb(metadata)))
+        """Create (upsert) a session with the caller-supplied Hermes id.
+
+        Faithful to ``SessionDB.create_session``: the id is a timestamp string
+        minted by the runtime (``20260912_113311_45eac8``), not generated here.
+        """
+        return str(self._scalar("sp_create_session", session_id, source, _jsonb(metadata)))
 
     def end_session(
         self,
