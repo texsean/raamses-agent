@@ -51,6 +51,16 @@ present, so the stock path is untouched by default.
 
 ### Gotchas worth remembering
 
+- **Pre-existing Windows test failures — not regressions.** `tests/hermes_state/`
+  has 9 failures on this host that also fail on stock upstream `v0.21.1`
+  (verified by running the same files in a clean worktree at `2237be3559`):
+  5 in `test_shared_session_db_registry.py` and 4 in
+  `test_state_db_file_identity.py`. All are POSIX inode-replacement semantics
+  that Windows does not have (`PermissionError: [WinError 32]` — you cannot
+  unlink a file another process holds open). Baseline for this repo on Windows
+  is therefore **276 passed / 9 failed** in `tests/hermes_state`. Do not spend
+  time "fixing" them and do not treat them as a Phase 3 regression signal;
+  compare against this baseline instead.
 - **psycopg sends untyped parameters as `unknown`**, which fails to resolve
   overloads against `VECTOR`/`JSONB`/`REAL` signatures — every stored-function
   call needs explicit per-argument casts (`%s::uuid`, `%s::vector(1536)`, ...).
